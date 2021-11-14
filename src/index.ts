@@ -13,7 +13,7 @@ const TARGET_EMOJIS: Array<string> = (process.env.TARGET_EMOJIS as string).split
 
 function PostToMisskey(body: string): Promise<Bent.ValidResponse>
 {
-    const post = Bent(`https://${INSTANCE_DOMAIN}`, 'POST', 'json', 200);
+    const post = Bent(`https://${INSTANCE_DOMAIN}/`, 'POST', 'json', 200);
     return post('api/notes/create', {
         'i': TOKEN,
         'visibility': 'public',
