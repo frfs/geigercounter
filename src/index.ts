@@ -9,7 +9,7 @@ require('dotenv').config();
 
 const INSTANCE_DOMAIN = process.env.INSTANCE_DOMAIN;
 const TOKEN = process.env.TOKEN;
-const TARGET_EMOJIS: Array<string> = (process.env.TARGET_EMOJIS as string).split(' ');
+const TARGET_EMOJIS: Array<string> = (process.env.TARGET_EMOJIS as string).split(' ').map(s => s.trim());
 
 function PostToMisskey(body: string): Promise<Bent.ValidResponse>
 {
@@ -70,7 +70,7 @@ function main(): void
             {
                 // 自鯖からのリアクションに限る
                 const reactionKey = (ret.body.body.reaction as string).replaceAll(':', '');
-                const [emojiKey, domain, ..._] = reactionKey.split('@');
+                const [emojiKey, domain, ..._] = reactionKey.split('@').map(s => s.trim());
                 if (domain === '.')
                 {
                     // 自鯖からきたリアクションをカウント
@@ -107,12 +107,18 @@ function main(): void
     Schedule.scheduleJob('1 * * * *', () => {
         // 数えたリアクション辞書を絞り込む
         let count = 0;
-        reactionCounts.forEach((v, k) => {
-            if (k in TARGET_EMOJIS)
+
+        for (const reaction of reactionCounts)
+        {
+            for (const emoji of TARGET_EMOJIS)
             {
-                count += v;
+                if (reaction[0] === emoji)
+                {
+                    count += reaction[1];
+                    break;
+                }
             }
-        });
+        }
 
         PostToMisskey(`ガリガリガリ…\nこの1時間の間に核の絵文字を使ったリアクションは${count}回行われました。`);
 
