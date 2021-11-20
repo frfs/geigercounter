@@ -11,8 +11,7 @@ const INSTANCE_DOMAIN = process.env.INSTANCE_DOMAIN;
 const TOKEN = process.env.TOKEN;
 const TARGET_EMOJIS: Array<string> = (process.env.TARGET_EMOJIS as string).split(' ').map(s => s.trim());
 
-function PostToMisskey(body: string): Promise<Bent.ValidResponse>
-{
+function PostToMisskey(body: string): Promise<Bent.ValidResponse> {
     const post = Bent(`https://${INSTANCE_DOMAIN}/`, 'POST', 'json', 200);
     return post('api/notes/create', {
         'i': TOKEN,
@@ -21,13 +20,13 @@ function PostToMisskey(body: string): Promise<Bent.ValidResponse>
     });
 }
 
-function main(): void
-{
+function main(): void {
     let reactionCounts = new Map<string, number>();
 
     const wsEndpoint = `wss://${INSTANCE_DOMAIN}/streaming?i=${TOKEN}`;
-    const wsOptions: Options = {'WebSocket': WebSocket};
+    const wsOptions: Options = { 'WebSocket': WebSocket };
     const wsClient = new ReconnectingWebSocket(wsEndpoint, [], wsOptions);
+    const sessionId = uuid();
 
     wsClient.onopen = () => {
         console.log('WebSocket Opened');
@@ -35,7 +34,7 @@ function main(): void
             'type': 'connect',
             'body': {
                 'channel': 'localTimeline',
-                'id': uuid(),
+                'id': sessionId,
                 'params': {},
             }
         }));
@@ -43,8 +42,7 @@ function main(): void
 
     wsClient.onmessage = e => {
         const ret = JSON.parse(e.data);
-        if (ret.type === 'channel' && ret.body.type === 'note')
-        {
+        if (ret.type === 'channel' && ret.body.type === 'note') {
             // 投稿が来た時、その時の終わりまで監視させる
             const postId = ret.body.body.id;
             const captureCancelAt = Dayjs().endOf('hour');
@@ -52,7 +50,7 @@ function main(): void
 
             wsClient.send(JSON.stringify({
                 'type': 'subNote',
-                'body': {'id': postId},
+                'body': { 'id': postId },
             }));
 
             Schedule.scheduleJob(captureCancelAt.toDate(), () => {
@@ -60,40 +58,29 @@ function main(): void
                 console.log(`End capture SubNote. id: ${postId}`);
                 wsClient.send(JSON.stringify({
                     'type': 'unsubNote',
-                    'body': {'id': postId},
+                    'body': { 'id': postId },
                 }));
             });
         }
-        else if (ret.type === 'noteUpdated')
-        {
-            if (ret.body.type === 'reacted')
-            {
-                // 自鯖からのリアクションに限る
+        else if (ret.type === 'noteUpdated') {
+            if (ret.body.type === 'reacted') {
                 const reactionKey = (ret.body.body.reaction as string).replaceAll(':', '');
                 const [emojiKey, domain, ..._] = reactionKey.split('@').map(s => s.trim());
-                if (domain === '.')
-                {
-                    // 自鯖からきたリアクションをカウント
-                    reactionCounts.set(emojiKey, reactionCounts?.get(emojiKey) ?? 0 + 1);
-                }
+                // リアクションをカウント
+                reactionCounts.set(emojiKey, reactionCounts?.get(emojiKey) ?? 0 + 1);
             }
-            else if (ret.body.type === 'unreacted')
-            {
-                // 自鯖からのリアクションに限る
+            else if (ret.body.type === 'unreacted') {
                 const reactionKey = (ret.body.body.reaction as string).replaceAll(':', '');
                 const [emojiKey, domain, ..._] = reactionKey.split('@');
-                if (domain === '.')
-                {
-                    // リアクションが外れた時 => それをカウントダウン
-                    const reactionCount = reactionCounts?.get(emojiKey) ?? 0;
-                    if (reactionCount > 0)
-                    {
-                        reactionCounts.set(emojiKey, reactionCount - 1);
-                        if (reactionCount - 1 <= 0)
-                        {
-                            reactionCounts.delete(emojiKey);
-                        }
+
+                // リアクションが外れた時 => それをカウントダウン
+                const reactionCount = reactionCounts?.get(emojiKey) ?? 0;
+                if (reactionCount > 0) {
+                    reactionCounts.set(emojiKey, reactionCount - 1);
+                    if (reactionCount - 1 <= 0) {
+                        reactionCounts.delete(emojiKey);
                     }
+
                 }
             }
         }
@@ -108,12 +95,9 @@ function main(): void
         // 数えたリアクション辞書を絞り込む
         let count = 0;
 
-        for (const reaction of reactionCounts)
-        {
-            for (const emoji of TARGET_EMOJIS)
-            {
-                if (reaction[0] === emoji)
-                {
+        for (const reaction of reactionCounts) {
+            for (const emoji of TARGET_EMOJIS) {
+                if (reaction[0] === emoji) {
                     count += reaction[1];
                     break;
                 }
