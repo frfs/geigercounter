@@ -46,7 +46,7 @@ function main(): void {
             // 投稿が来た時、その時の終わりまで監視させる
             const postId = ret.body.body.id;
             const captureCancelAt = Dayjs().endOf('hour');
-            console.log(`Start capture SubNote. id: ${postId}`);
+            console.log(`Start capture. noteId:${postId}`);
 
             wsClient.send(JSON.stringify({
                 'type': 'subNote',
@@ -55,7 +55,7 @@ function main(): void {
 
             Schedule.scheduleJob(captureCancelAt.toDate(), () => {
                 // 監視キャンセル
-                console.log(`End capture SubNote. id: ${postId}`);
+                console.log(`End capture. noteId:${postId}`);
                 wsClient.send(JSON.stringify({
                     'type': 'unsubNote',
                     'body': { 'id': postId },
@@ -91,7 +91,7 @@ function main(): void {
     };
 
     // 毎時ジョブ
-    Schedule.scheduleJob('1 * * * *', () => {
+    Schedule.scheduleJob('0 * * * *', () => {
         // 数えたリアクション辞書を絞り込む
         let count = 0;
 
